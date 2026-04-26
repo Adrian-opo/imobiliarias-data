@@ -22,6 +22,7 @@ from parsel import Selector
 
 from app.scrapers.base import BaseScraper, DEFAULT_HEADERS
 from app.scrapers.registry import register_scraper
+from app.config import settings
 from app.services.normalize import (
     clean_text,
     normalize_price,

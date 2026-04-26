@@ -150,15 +150,20 @@ class CityScraper(BaseScraper):
         title = sel.css("h1::text, .titulo-imovel::text").get("")
         raw["title"] = clean_text(title)
 
-        price_text = sel.css(
-            ".preco::text, .price::text, .valor::text, "
-            "span:contains('R$')::text, strong:contains('R$')::text"
-        ).get("")
+        # Price: Union platform uses .valor-imovel > h4 with "R$ X.XXX,XX"
+        price_text = ""
+        valor_texts = sel.css(".valor-imovel *::text").getall()
+        for t in valor_texts:
+            if re.search(r'R\$\s*[\d\s\.]+,\d{2}', t):
+                price_text = t.strip()
+                break
+        if not price_text:
+            price_text = sel.css(".valor-imovel h4::text").get("")
         if not price_text:
             price_els = sel.css("*:contains('R$')::text").getall()
             for p in price_els:
                 if re.search(r'R\$\s*[\d\s\.]+,\d{2}', p):
-                    price_text = p
+                    price_text = p.strip()
                     break
         raw["price"] = price_text
 
@@ -214,17 +219,22 @@ class CityScraper(BaseScraper):
         if area_match:
             raw["total_area"] = area_match.group(1).replace(",", ".")
 
-        # Images
+        # Images: Union uses Swiper with lazy loading — real URLs are in data-src, not src
         images = []
-        img_tags = sel.css(
-            ".gallery img::attr(src), img[src*='cdnuso.com']::attr(src), "
-            "img[src*='cdn2.uso.com.br']::attr(src)"
-        ).getall()
         seen = set()
-        for i, src in enumerate(img_tags):
-            if src and src not in seen:
+        # 1. Extract from data-src (lazy-loaded Swiper gallery images)
+        for img in sel.css(".swiper-slide img[data-src], .fotos_imovel img[data-src], img[data-src]"):
+            src = img.attrib.get("data-src", "")
+            if src and src not in seen and "foto_vazio" not in src and "logo" not in src.lower():
                 seen.add(src)
-                images.append({"url": src, "position": i})
+                images.append({"url": src, "position": len(images)})
+        # 2. Fallback: extract from src (already-loaded or non-lazy images)
+        if not images:
+            for img in sel.css("img[src*='cdnuso.com'], img[src*='cdn2.uso.com.br'], .fotos_imovel img[src]"):
+                src = img.attrib.get("src", "")
+                if src and src not in seen and "foto_vazio" not in src and "logo" not in src.lower():
+                    seen.add(src)
+                    images.append({"url": src, "position": len(images)})
         raw["images"] = images
 
         return raw

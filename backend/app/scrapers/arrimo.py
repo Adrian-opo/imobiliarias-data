@@ -274,17 +274,24 @@ class ArrimoScraper(BaseScraper):
                 raw["total_area"] = m2_matches[0]
 
         # Images - Imonov stores on si9dados3.com.br
+        # Always filter by CDN domain; also try known gallery wrappers, data-src, etc.
         images = []
         img_tags = sel.css(
+            "img[src*='si9dados3']::attr(src), "
+            "img[data-src*='si9dados3']::attr(data-src), "
             ".gallery img::attr(src), .carousel img::attr(src), "
             ".fotos img::attr(src), .property-images img::attr(src), "
             "#galeria img::attr(src), [class*='foto'] img::attr(src)"
         ).getall()
         seen_urls = set()
-        for i, src in enumerate(img_tags):
-            if src and src not in seen_urls and "si9dados3" in src:
-                seen_urls.add(src)
-                images.append({"url": src.strip(), "position": i})
+        for src in img_tags:
+            src = src.strip()
+            if not src or src in seen_urls:
+                continue
+            if "si9dados3" not in src:
+                continue
+            seen_urls.add(src)
+            images.append({"url": src, "position": len(images)})
         raw["images"] = images
 
         return raw
