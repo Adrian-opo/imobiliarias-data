@@ -51,13 +51,15 @@ class CityScraper(BaseScraper):
             "headers": dict(DEFAULT_HEADERS),
         }
 
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Scrape property listings from City Imoveis (Union).
 
         Union uses SSR with structured URLs:
         /comprar/ro/ji-parana (all sales in Ji-Parana)
         /alugar/ro/ji-parana (all rentals in Ji-Parana)
+
+        page_offset is unused (Union uses single page), kept for API compatibility.
         """
         results = []
         search_urls = [

@@ -61,19 +61,22 @@ class NovaOpcaoScraper(BaseScraper):
             "headers": dict(DEFAULT_HEADERS),
         }
 
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Scrape property listings from Nova Opcao.
 
         Apre.me platform uses SSR with SEO-friendly slugs.
         We iterate through paginated business type pages.
+
+        Uses page_offset to rotate which pages are visited each cycle.
         """
         results = []
 
         async with httpx.AsyncClient(**self._client_kwargs) as client:
             for business_type, base_url in BUSINESS_URLS:
-                page = 1
-                while page <= 50:
+                start_page = 1 + max(0, page_offset)
+                end_page = start_page + settings.scrape_page_limit - 1
+                for page in range(start_page, end_page + 1):
                     url = f"{base_url}?pagina={page}" if page > 1 else base_url
                     logger.info("NovaOpcao: fetching %s page %d", business_type, page)
 
@@ -141,7 +144,7 @@ class NovaOpcaoScraper(BaseScraper):
                 seen.add(item["source_property_id"])
                 unique.append(item)
 
-        logger.info("NovaOpcao: total unique listings: %d", len(unique))
+        logger.info("NovaOpcao: offset=%d, unique=%d", page_offset, len(unique))
         return unique
 
     async def scrape_detail(self, source_property_id: str, url: str) -> Optional[dict]:

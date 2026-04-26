@@ -50,19 +50,22 @@ class ArrimoScraper(BaseScraper):
         # Imonov detail URLs: /imovel/{business_type}/{category}/{city}/{neighborhood}/{slug}/{numeric_id}
         # e.g. /imovel/venda/casa/ji-parana-ro/urupa/casa-para-venda.../824950
 
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Scrape property listings from Arrimo Imoveis (Imonov).
 
         Imonov uses paginated SSR pages. We iterate through pages
         extracting property cards.
+
+        Uses page_offset to rotate which pages are visited each cycle.
         """
         results = []
 
         async with httpx.AsyncClient(**self._client_kwargs) as client:
             for base_url in LISTING_URLS:
-                page = 1
-                while page <= settings.scrape_page_limit:
+                start_page = 1 + max(0, page_offset)
+                end_page = start_page + settings.scrape_page_limit - 1
+                for page in range(start_page, end_page + 1):
                     # Imonov pagination: last number in URL is page
                     url = re.sub(r'/\d+$', f"/{page}", base_url)
                     logger.info("Arrimo: fetching page %d", page)
@@ -133,7 +136,8 @@ class ArrimoScraper(BaseScraper):
 
         limited = unique[: settings.scrape_max_detail_pages_per_cycle]
         logger.info(
-            "Arrimo: total unique listings=%d, processing this cycle=%d",
+            "Arrimo: offset=%d, unique=%d, processing=%d",
+            page_offset,
             len(unique),
             len(limited),
         )
