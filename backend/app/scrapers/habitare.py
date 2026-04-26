@@ -27,9 +27,13 @@ from app.scrapers.base import BaseScraper, DEFAULT_HEADERS
 from app.scrapers.registry import register_scraper
 from app.config import settings
 from app.services.normalize import (
+    clean_text,
     normalize_price,
-    normalize_property_type,
+    normalize_area,
     normalize_business_type,
+    normalize_neighborhood,
+    normalize_property_type,
+    extract_bedrooms,
     compute_content_hash,
 )
 
@@ -57,8 +61,8 @@ class HabitareScraper(BaseScraper):
 
         # URLs for sale and rent
         search_urls = [
-            f"{self.base_url}/filtro/venda/todos/todos/todos/0-1500000/todos/todos",
-            f"{self.base_url}/filtro/locacao/todos/todos/todos/0-20000/todos/todos",
+            f"{self.base_url}/filtro/venda/todos/todas/todos/0-1500000/todos/todos",
+            f"{self.base_url}/filtro/locacao/todos/todas/todos/0-20000/todos/todos",
         ]
 
         async with httpx.AsyncClient(**self._client_kwargs) as client:
@@ -186,20 +190,28 @@ class HabitareScraper(BaseScraper):
                 break
         raw['description'] = description
 
-        # Extract price
+        # Extract price - look for R$ pattern
         price_text = None
         for text in text_clean:
             if 'R$' in text:
-                price_text = text
-                break
+                # Extract just the price part (R$ XXX.XXX,XX)
+                import re
+                m = re.search(r'R\$[\s\d\.]+,\d{2}', text)
+                if m:
+                    price_text = m.group(0)
+                    break
         raw['price_text'] = price_text
 
-        # Extract area
+        # Extract area - look for m² pattern with number
         area_text = None
         for text in text_clean:
             if 'm²' in text or 'm2' in text:
-                area_text = text
-                break
+                # Extract area value
+                import re
+                m = re.search(r'[\d\.,]+\s*m²', text, re.IGNORECASE)
+                if m:
+                    area_text = m.group(0)
+                    break
         raw['area_text'] = area_text
 
         # Extract bedrooms, bathrooms, garage from features
