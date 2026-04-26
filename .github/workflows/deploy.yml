@@ -27,7 +27,8 @@ jobs:
             cd /opt/imobiliarias-data
 
             echo "=== Pulling latest code ==="
-            git pull origin main
+            git config pull.rebase true
+            git pull --rebase origin main
 
             echo "=== Rebuilding changed services ==="
             # Detect what changed and rebuild only what's needed
