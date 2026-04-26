@@ -337,30 +337,30 @@ class NogueiraScraper(BaseScraper):
                                 if isinstance(item, dict):
                                     prop_id = item.get("code") or item.get("id")
                                     if prop_id:
-                                # Convert to format code-XXXX if numeric
-                                if isinstance(prop_id, int) or (isinstance(prop_id, str) and prop_id.isdigit()):
-                                    prop_id_str = f"code-{prop_id}" if isinstance(prop_id, int) else f"code-{prop_id}"
-                                else:
-                                    prop_id_str = str(prop_id)
+                                        # Convert to format code-XXXX if numeric
+                                        if isinstance(prop_id, int) or (isinstance(prop_id, str) and prop_id.isdigit()):
+                                            prop_id_str = f"code-{prop_id}" if isinstance(prop_id, int) else f"code-{prop_id}"
+                                        else:
+                                            prop_id_str = str(prop_id)
 
-                                # Get URL if available
-                                url = item.get("site_url") or item.get("url") or item.get("link")
-                                if url:
-                                    if not url.startswith("http"):
-                                        url = f"{self.base_url}{url}"
-                                else:
-                                    # Build URL from slug if available
-                                    slug = item.get("slug") or item.get("url_slug")
-                                    if slug:
-                                        url = f"{self.base_url}/imovel/{slug}-code-{prop_id}"
-                                    else:
-                                        url = None
+                                        # Get URL if available
+                                        url = item.get("site_url") or item.get("url") or item.get("link")
+                                        if url:
+                                            if not url.startswith("http"):
+                                                url = f"{self.base_url}{url}"
+                                        else:
+                                            # Build URL from slug if available
+                                            slug = item.get("slug") or item.get("url_slug")
+                                            if slug:
+                                                url = f"{self.base_url}/imovel/{slug}-code-{prop_id}"
+                                            else:
+                                                url = None
 
-                                if url:
-                                    results.append({
-                                        "source_property_id": prop_id_str,
-                                        "url": url,
-                                    })
+                                        if url:
+                                            results.append({
+                                                "source_property_id": prop_id_str,
+                                                "url": url,
+                                            })
 
                 elif isinstance(data, dict):
                     # Sometimes data is wrapped in a dict
