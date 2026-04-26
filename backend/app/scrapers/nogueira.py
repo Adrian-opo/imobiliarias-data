@@ -322,16 +322,21 @@ class NogueiraScraper(BaseScraper):
         """
         results = []
 
-        # ng-state structure: {hash: {b: [...], u: url, s: status}}
+        # ng-state structure: key 3633120359 contains {b: {properties: {properties: [...]}}}
+        # Find the key with properties data
         for key, value in ng_state.items():
             if isinstance(value, dict) and "b" in value:
                 data = value["b"]
-                # Data could be a list of properties or a dict with properties
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            prop_id = item.get("code") or item.get("id")
-                            if prop_id:
+                # Check if this is the properties container
+                if isinstance(data, dict) and "properties" in data:
+                    props_container = data["properties"]
+                    if isinstance(props_container, dict) and "properties" in props_container:
+                        properties = props_container["properties"]
+                        if isinstance(properties, list):
+                            for item in properties:
+                                if isinstance(item, dict):
+                                    prop_id = item.get("code") or item.get("id")
+                                    if prop_id:
                                 # Convert to format code-XXXX if numeric
                                 if isinstance(prop_id, int) or (isinstance(prop_id, str) and prop_id.isdigit()):
                                     prop_id_str = f"code-{prop_id}" if isinstance(prop_id, int) else f"code-{prop_id}"
@@ -339,7 +344,7 @@ class NogueiraScraper(BaseScraper):
                                     prop_id_str = str(prop_id)
 
                                 # Get URL if available
-                                url = item.get("url") or item.get("link")
+                                url = item.get("site_url") or item.get("url") or item.get("link")
                                 if url:
                                     if not url.startswith("http"):
                                         url = f"{self.base_url}{url}"
