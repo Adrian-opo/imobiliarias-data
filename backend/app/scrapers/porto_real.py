@@ -72,22 +72,30 @@ class PortoRealScraper(BaseScraper):
         super().__init__(source_id, base_url)
         self._client_kwargs = self.build_client_kwargs()
 
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Scrape property listings from Porto Real.
 
         Kenlo exposes SSR cards on multiple filter URLs. The generic city page only
         shows a subset, so we fan out through the real type-specific routes and keep
         the crawl conservative via the shared page limit and polite delays.
+
+        Uses page_offset to rotate which routes are visited each cycle.
         """
         results = []
-        # Interleave SALE and RENT routes so both categories are visited each cycle.
-        # SALE_PATHS + RENT_PATHS concatenated would bias toward SALE (13 vs 9 routes).
+        # Rotate routes using page_offset so different sets are visited each cycle.
+        # Concatenate SALE + RENT paths, then pick a window that slides each cycle.
+        all_paths = self.SALE_PATHS + self.RENT_PATHS
         max_routes = settings.scrape_max_listing_routes_per_cycle
-        half = max(max_routes // 2, 1)
-        sale_selected = self.SALE_PATHS[:half]
-        rent_selected = self.RENT_PATHS[:max(max_routes - half, 1)]
-        # Interleave: SALE[0], RENT[0], SALE[1], RENT[1], ...
+        offset = (max(0, page_offset) * max_routes) % len(all_paths)
+        if offset + max_routes <= len(all_paths):
+            selected = all_paths[offset:offset + max_routes]
+        else:
+            # Wrap around
+            selected = all_paths[offset:] + all_paths[:max_routes - (len(all_paths) - offset)]
+        # Separate SALE and RENT, then interleave for fair coverage
+        sale_selected = [p for p in selected if p in self.SALE_PATHS]
+        rent_selected = [p for p in selected if p in self.RENT_PATHS]
         interleaved = []
         i = 0
         while len(interleaved) < max_routes and (i < len(sale_selected) or i < len(rent_selected)):
@@ -155,7 +163,8 @@ class PortoRealScraper(BaseScraper):
 
         limited = unique[: settings.scrape_max_detail_pages_per_cycle]
         logger.info(
-            "PortoReal: total unique listings=%d, selected routes=%d, processing this cycle=%d",
+            "PortoReal: offset=%d, total unique=%d, routes=%d, processing=%d",
+            page_offset,
             len(unique),
             len(search_urls),
             len(limited),

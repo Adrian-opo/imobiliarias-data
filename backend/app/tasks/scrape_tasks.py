@@ -121,9 +121,15 @@ def run_scrape(self, source_id: str):
         scraper = scraper_cls(source_uuid, source.base_url)
         logger.info("[Scrape] Using scraper: %s", scraper_cls.__name__)
 
-        # --- Step 1: scrape listings ---
+        # --- Step 1: scrape listings with pagination rotation ---
         try:
-            listings = _run_async(scraper.scrape_listings())
+            # Count successful runs to use as page offset (rotation across cycles)
+            prev_runs = db.query(ScrapeRun).filter(
+                ScrapeRun.source_id == source_uuid,
+                ScrapeRun.status == ScrapeRunStatus.SUCCESS,
+            ).count()
+            page_offset = prev_runs  # each successful run advances the page window
+            listings = _run_async(scraper.scrape_listings(page_offset=page_offset))
             if not listings:
                 listings = []
             logger.info("[Scrape] '%s': found %d listings", source.name, len(listings))

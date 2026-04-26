@@ -56,9 +56,14 @@ class BaseScraper(ABC):
         await asyncio.sleep(random.uniform(low, high))
 
     @abstractmethod
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Fetch list of properties from the source portal.
+
+        Args:
+            page_offset: starting page offset for pagination rotation.
+                         Each cycle should pass a different offset so that
+                         different pages/routes are visited over time.
 
         Returns a list of dicts with at minimum:
             {"source_property_id": str, "url": str}

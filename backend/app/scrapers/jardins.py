@@ -55,11 +55,12 @@ class JardinsScraper(BaseScraper):
         super().__init__(source_id, base_url)
         self._client_kwargs = self.build_client_kwargs()
 
-    async def scrape_listings(self) -> list[dict]:
+    async def scrape_listings(self, page_offset: int = 0) -> list[dict]:
         """
         Scrape list of properties from Jardins Imobiliaria.
 
         Conservative approach: few pages per cycle and polite delays.
+        Uses page_offset to rotate which pages are visited each cycle.
         """
         results = []
 
@@ -70,8 +71,9 @@ class JardinsScraper(BaseScraper):
 
         async with httpx.AsyncClient(**self._client_kwargs) as client:
             for base_list_url in search_urls:
-                page = 1
-                while page <= settings.scrape_page_limit:
+                start_page = 1 + max(0, page_offset)  # rotate starting page
+                end_page = start_page + settings.scrape_page_limit - 1
+                for page in range(start_page, end_page + 1):
                     url = f"{base_list_url}&pagina={page}" if page > 1 else base_list_url
                     logger.info("Jardins: fetching page %d: %s", page, url)
 
@@ -122,9 +124,13 @@ class JardinsScraper(BaseScraper):
                 seen.add(item["source_property_id"])
                 unique.append(item)
 
-        limited = unique[: settings.scrape_max_detail_pages_per_cycle]
+        # With page_offset rotation, different pages are visited each cycle.
+        # The conservative limit ensures we process at most N listings per run.
+        n_limit = min(len(unique), settings.scrape_max_detail_pages_per_cycle)
+        limited = unique[:n_limit]
         logger.info(
-            "Jardins: total unique listings=%d, processing this cycle=%d",
+            "Jardins: visited pages offset=%d, unique=%d, processing=%d",
+            page_offset,
             len(unique),
             len(limited),
         )
