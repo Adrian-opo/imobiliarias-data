@@ -4,10 +4,17 @@ Agregador de imóveis de Ji-Paraná (RO). Coleta, normaliza e disponibiliza via 
 
 Estado atual do projeto:
 - backend e frontend integrados e validados no fluxo principal
-- scraper real funcional para `Jardins Imobiliaria`
+- scraper real funcional para `Jardins Imobiliaria` e `Porto Real Imoveis`
 - demais scrapers presentes, mas ainda em estágio parcial
 - dados mock de QA removidos do banco
 - coleta configurada de forma conservadora para nao pressionar os sites de origem
+- deploy automatico via GitHub Actions (push na main)
+
+## Producao
+
+- **Frontend**: https://imoveisjipa.adrianx.dev
+- **API**: https://imoveisjipa.adrianx.dev/api/v1
+- **Swagger**: https://imoveisjipa.adrianx.dev/docs
 
 ## Stack
 
