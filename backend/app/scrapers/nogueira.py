@@ -59,63 +59,65 @@ class NogueiraScraper(BaseScraper):
         Scrape property listings from Imobiliaria Nogueira.
 
         The /buscar page shows properties with ng-state embedded data.
-        Uses page_offset to rotate which pages are visited each cycle.
+        Note: This site does not support pagination - all properties are on page 1.
         """
         results = []
 
         async with httpx.AsyncClient(**self._client_kwargs) as client:
-            start_page = 1 + max(0, page_offset)
-            end_page = start_page + settings.scrape_page_limit - 1
+            # Site doesn't support pagination - always fetch page 1
+            url = f"{self.base_url}/buscar"
+            logger.info("Nogueira: fetching %s", url)
 
-            for page in range(start_page, end_page + 1):
-                url = f"{self.base_url}/buscar?page={page}" if page > 1 else f"{self.base_url}/buscar"
-                logger.info("Nogueira: fetching page %d: %s", page, url)
+            try:
+                await self.polite_delay()
+                resp = await client.get(url)
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                logger.warning("Nogueira fetch error: %s", e)
+                return results
 
-                try:
-                    await self.polite_delay()
-                    resp = await client.get(url)
-                    resp.raise_for_status()
-                except httpx.HTTPError as e:
-                    logger.warning("Nogueira page %d error: %s", page, e)
-                    break
+            sel = Selector(resp.text)
 
-                sel = Selector(resp.text)
+            # Extract ng-state JSON blob
+            ng_state = self._extract_ng_state(sel)
+            if ng_state:
+                # Extract property listings from ng-state
+                items_from_state = self._extract_listings_from_ng_state(ng_state)
+                if items_from_state:
+                    results.extend(items_from_state)
+                    logger.info("Nogueira: found %d items from ng-state",
+                                len(items_from_state))
+                    return results
 
-                # Extract ng-state JSON blob
-                ng_state = self._extract_ng_state(sel)
-                if ng_state:
-                    # Extract property listings from ng-state
-                    items_from_state = self._extract_listings_from_ng_state(ng_state)
-                    if items_from_state:
-                        results.extend(items_from_state)
-                        logger.info("Nogueira: found %d items from ng-state (total %d)",
-                                    len(items_from_state), len(results))
-                        continue
+            # Fallback: scrape links from HTML
+            cards = sel.css("a[href*='/imovel/']")
+            page_items = []
+            for card in cards:
+                href = card.attrib.get("href", "")
+                if not href or "/imovel/" not in href:
+                    continue
 
-                # Fallback: scrape links from HTML
-                cards = sel.css("a[href*='/imovel/']")
-                page_items = []
-                for card in cards:
-                    href = card.attrib.get("href", "")
-                    if not href or "/imovel/" not in href:
-                        continue
+                # Extract property ID from URL: /imovel/{slug}-code-{id}
+                m = re.search(r'/imovel/.+-code-(\d+)$', href)
+                if not m:
+                    continue
 
-                    # Extract property ID from URL: /imovel/{slug}-code-{id}
-                    m = re.search(r'/imovel/.+-code-(\d+)$', href)
-                    if not m:
-                        continue
+                prop_id = f"code-{m.group(1)}"
+                full_url = href if href.startswith("http") else f"{self.base_url}{href}"
 
-                    prop_id = f"code-{m.group(1)}"
-                    full_url = href if href.startswith("http") else f"{self.base_url}{href}"
-
-                    page_items.append({
+                page_items.append(
+                    {
                         "source_property_id": prop_id,
                         "url": full_url,
-                    })
+                    }
+                )
 
-                results.extend(page_items)
-                logger.info("Nogueira: found %d items on page %d (total %d)",
-                            len(page_items), page, len(results))
+            results.extend(page_items)
+            logger.info(
+                "Nogueira: found %d items from HTML fallback (total %d)",
+                len(page_items),
+                len(results),
+            )
 
         # Deduplicate
         seen = set()
