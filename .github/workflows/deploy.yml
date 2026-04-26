@@ -1,0 +1,42 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add VM to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 185.187.235.13 >> ~/.ssh/known_hosts
+
+      - name: Deploy to production VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 185.187.235.13
+          username: root
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/imobiliarias-data
+
+            echo "=== Pulling latest code ==="
+            git pull origin main
+
+            echo "=== Rebuilding changed services ==="
+            # Detect what changed and rebuild only what's needed
+            docker compose -f docker-compose.prod.yml build
+
+            echo "=== Restarting all services ==="
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "=== Checking health ==="
+            sleep 10
+            curl -sf http://localhost:8000/api/v1/health && echo " API OK"
+            curl -sfI http://localhost:3000/ > /dev/null 2>&1 && echo " Frontend OK"
