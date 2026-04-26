@@ -32,3 +32,5 @@ pgdata/
 
 # Logs
 *.log
+
+backend/celerybeat-schedule
