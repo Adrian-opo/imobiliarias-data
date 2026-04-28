@@ -52,7 +52,7 @@ function ensureFaviconLink(): HTMLLinkElement | null {
     .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
     .forEach((existing) => {
       if (!(existing as HTMLLinkElement).dataset.animatedFavicon) {
-        existing.parentNode?.removeChild(existing);
+        existing.remove();
       }
     });
 
@@ -61,16 +61,6 @@ function ensureFaviconLink(): HTMLLinkElement | null {
     "link[data-animated-favicon='true']"
   ) as HTMLLinkElement | null;
   if (link) return link;
-
-  // Reuse an existing <link rel="icon"> instead of creating a duplicate
-  link = document.querySelector(
-    'link[rel="icon"], link[rel="shortcut icon"]'
-  ) as HTMLLinkElement | null;
-  if (link) {
-    link.setAttribute("data-animated-favicon", "true");
-    link.type = "image/svg+xml";
-    return link;
-  }
 
   // Nothing exists — create fresh
   link = document.createElement("link");
