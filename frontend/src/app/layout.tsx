@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import AnimatedFavicon from "@/components/AnimatedFavicon";
 
 export const metadata: Metadata = {
   title: {
@@ -17,6 +18,12 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     type: "website",
   },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -27,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="flex min-h-screen flex-col">
+        <AnimatedFavicon />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
